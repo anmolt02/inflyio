@@ -1,17 +1,30 @@
-export default function Home() {
+import Sidebar from "@/components/Sidebar";
+
+export default function Dashboard() {
   return (
-    <main className="min-h-screen bg-[#0F1117] text-white flex flex-col items-center justify-center px-6">
-      <h1 className="text-5xl font-bold text-center mb-6">
-        Know Your Influence.
-      </h1>
+    <div className="flex bg-[#0F1117] text-white">
+      <Sidebar />
 
-      <p className="text-gray-400 text-lg text-center max-w-xl mb-8">
-        Inflyio helps creators measure their true influence using AI-powered analytics.
-      </p>
+      <div className="flex-1 p-10 space-y-8">
+        <h1 className="text-3xl font-bold">Dashboard</h1>
 
-      <button className="bg-[#5B7CFA] hover:bg-blue-600 px-8 py-4 rounded-xl text-white font-medium">
-        Check My Score
-      </button>
-    </main>
+        <div className="bg-[#1A1D26] p-10 rounded-2xl">
+          <h2 className="text-xl mb-4">Overall Influence Score</h2>
+          <div className="text-6xl font-bold text-[#5B7CFA]">78</div>
+        </div>
+
+        <div className="grid grid-cols-2 gap-6">
+          <div className="bg-[#1A1D26] p-6 rounded-xl">
+            Engagement Score
+            <div className="text-3xl mt-2 text-[#9B5DE5]">82</div>
+          </div>
+
+          <div className="bg-[#1A1D26] p-6 rounded-xl">
+            Growth Score
+            <div className="text-3xl mt-2 text-[#00C2A8]">74</div>
+          </div>
+        </div>
+      </div>
+    </div>
   );
 }
