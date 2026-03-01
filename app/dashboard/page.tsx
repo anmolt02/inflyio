@@ -13,8 +13,8 @@ export default function Dashboard() {
     setLoading(true);
 
     const response = await fetch(
-      `http://localhost:8000/youtube-score-by-name/${encodeURIComponent(input)}`
-    );
+  `/api/youtube-score?name=${encodeURIComponent(input)}`
+);
 
     const result = await response.json();
     setData(result);
