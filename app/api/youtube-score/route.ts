@@ -1,25 +1,32 @@
 import { NextResponse } from "next/server";
 
-const TIERS = [
-  [0, 1000, "Emerging", 10, 25],
-  [1000, 5000, "Rising", 20, 35],
-  [5000, 10000, "Developing", 30, 45],
-  [10000, 50000, "Established", 40, 60],
-  [50000, 100000, "Recognized", 50, 70],
-  [100000, 500000, "Influencer", 60, 80],
-  [500000, 1000000, "Major", 70, 85],
-  [1000000, 5000000, "Power Creator", 80, 90],
-  [5000000, 10000000, "Elite", 85, 93],
-  [10000000, 30000000, "Superstar", 90, 96],
-  [30000000, 100000000, "Global Icon", 94, 98],
-  [100000000, Infinity, "Titan", 96, 99],
+type Tier = {
+  min: number;
+  max: number;
+  label: string;
+  scoreMin: number;
+  scoreMax: number;
+};
+
+const TIERS: Tier[] = [
+  { min: 0, max: 1000, label: "Emerging", scoreMin: 10, scoreMax: 25 },
+  { min: 1000, max: 5000, label: "Rising", scoreMin: 20, scoreMax: 35 },
+  { min: 5000, max: 10000, label: "Developing", scoreMin: 30, scoreMax: 45 },
+  { min: 10000, max: 50000, label: "Established", scoreMin: 40, scoreMax: 60 },
+  { min: 50000, max: 100000, label: "Recognized", scoreMin: 50, scoreMax: 70 },
+  { min: 100000, max: 500000, label: "Influencer", scoreMin: 60, scoreMax: 80 },
+  { min: 500000, max: 1000000, label: "Major", scoreMin: 70, scoreMax: 85 },
+  { min: 1000000, max: 5000000, label: "Power Creator", scoreMin: 80, scoreMax: 90 },
+  { min: 5000000, max: 10000000, label: "Elite", scoreMin: 85, scoreMax: 93 },
+  { min: 10000000, max: 30000000, label: "Superstar", scoreMin: 90, scoreMax: 96 },
+  { min: 30000000, max: 100000000, label: "Global Icon", scoreMin: 94, scoreMax: 98 },
+  { min: 100000000, max: Number.MAX_SAFE_INTEGER, label: "Titan", scoreMin: 96, scoreMax: 99 },
 ];
 
-function getTier(subscribers: number) {
+function getTier(subscribers: number): Tier | null {
   for (const tier of TIERS) {
-    const [min, max, label, scoreMin, scoreMax] = tier;
-    if (subscribers >= min && subscribers < max) {
-      return { min, max, label, scoreMin, scoreMax };
+    if (subscribers >= tier.min && subscribers < tier.max) {
+      return tier;
     }
   }
   return null;
