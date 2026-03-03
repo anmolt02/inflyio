@@ -58,7 +58,7 @@ export async function GET(req: Request) {
     return NextResponse.json({ error: "Channel not found" });
   }
 
-  const channelId = searchData.items[0].snippet.channelId;
+  const channelId = searchData.items[0].id.channelId;
 
   // Get stats
   const statsRes = await fetch(
