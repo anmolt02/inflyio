@@ -51,6 +51,9 @@ export async function GET(req: Request) {
 
   const searchData = await searchRes.json();
 
+  console.log("SEARCH DATA:", searchData);
+  console.log("API KEY EXISTS:", !!process.env.YOUTUBE_API_KEY);
+
   if (!searchData.items || searchData.items.length === 0) {
     return NextResponse.json({ error: "Channel not found" });
   }
