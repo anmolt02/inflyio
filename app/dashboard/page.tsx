@@ -6,20 +6,33 @@ export default function Dashboard() {
   const [input, setInput] = useState("");
   const [data, setData] = useState<any>(null);
   const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   const fetchScore = async () => {
     if (!input) return;
 
-    setLoading(true);
+    try {
+      setLoading(true);
+      setError(null);
+      setData(null);
 
-    const response = await fetch(
-  `/api/youtube-score?name=${encodeURIComponent(input)}`
-);
+      const response = await fetch(
+        `/api/youtube-score?name=${encodeURIComponent(input)}`
+      );
 
-    const result = await response.json();
-    setData(result);
+      const result = await response.json();
 
-    setLoading(false);
+      if (!response.ok || result.error) {
+        setError(result.error || "Something went wrong");
+        return;
+      }
+
+      setData(result);
+    } catch (err) {
+      setError("Failed to analyze channel.");
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
@@ -53,9 +66,14 @@ export default function Dashboard() {
             {loading ? "Analyzing..." : "Analyze"}
           </button>
         </div>
+
+        {error && (
+          <p className="text-red-400 mt-4">{error}</p>
+        )}
       </div>
 
-      {data && !data.error && (
+      {/* Results */}
+      {data && (
         <div className="grid md:grid-cols-2 gap-8">
 
           {/* Score Section */}
@@ -65,7 +83,7 @@ export default function Dashboard() {
             </div>
 
             <div className="text-6xl font-semibold mt-4">
-              {data.influence_score}
+              {data.influenceScore}
             </div>
 
             <div className="mt-6 inline-block px-4 py-2 bg-indigo-600/20 text-indigo-400 rounded-full text-sm">
@@ -76,17 +94,17 @@ export default function Dashboard() {
           {/* Metrics */}
           <div className="card p-8 space-y-4">
             <Metric label="Subscribers" value={data.subscribers} />
-            <Metric label="Total Views" value={data.total_views} />
-            <Metric label="Videos" value={data.video_count} />
-            <Metric label="Avg Views / Video" value={data.avg_views_per_video} />
-            <Metric label="Engagement Ratio" value={data.engagement_ratio} />
+            <Metric label="Total Views" value={data.totalViews} />
+            <Metric label="Videos" value={data.videos} />
+            <Metric label="Avg Views / Video" value={data.avgViews} />
+            <Metric label="Engagement Ratio" value={data.engagementRatio} />
           </div>
 
           {/* Sub Scores */}
           <div className="card p-8 md:col-span-2 space-y-6">
-            <Progress label="Scale Position" value={data.scale_position} />
-            <Progress label="Consistency" value={data.consistency_score} />
-            <Progress label="Activity" value={data.activity_score} />
+            <Progress label="Scale Position" value={data.scalePosition} />
+            <Progress label="Consistency" value={data.consistencyScore} />
+            <Progress label="Activity" value={data.activityScore} />
           </div>
 
         </div>
