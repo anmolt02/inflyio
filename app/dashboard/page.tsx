@@ -101,7 +101,7 @@ const response = await fetch(
           <input
             type="text"
             placeholder="Search YouTube creator..."
-            className="flex-1 p-4 rounded-xl bg-[#0F1117] border border-white/10"
+            className="flex-1 p-4 rounded-xl bg-[#0F1117] border border-white/10 text-white placeholder-gray-400"
             value={input}
             onChange={(e) => setInput(e.target.value)}
           />
