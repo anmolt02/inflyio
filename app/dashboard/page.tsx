@@ -28,7 +28,7 @@ export default function Dashboard() {
         `/api/youtube-score?name=${encodeURIComponent(input)}`,
         {
           headers: {
-            "x-user-id": "test-user-123",
+            "x-user-id": user?.id || "",
           },
         }
       );
