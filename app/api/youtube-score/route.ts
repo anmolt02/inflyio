@@ -1,10 +1,13 @@
 export const runtime = "nodejs";
+
 import { NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
+
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
   process.env.SUPABASE_SERVICE_ROLE_KEY!
 );
+
 type Tier = {
   min: number;
   max: number;
@@ -38,93 +41,106 @@ function getTier(subscribers: number): Tier | null {
 }
 
 export async function GET(req: Request) {
-  const { searchParams } = new URL(req.url);
-  const channelName = searchParams.get("name");
+  try {
+    const { searchParams } = new URL(req.url);
+    const channelName = searchParams.get("name");
+    const userId = searchParams.get("userId"); // ✅ FIXED
 
-  if (!channelName) {
-    return NextResponse.json({ error: "Channel name required" });
+    console.log("USER ID:", userId);
+
+    if (!channelName) {
+      return NextResponse.json({ error: "Channel name required" });
+    }
+
+    const API_KEY = process.env.YOUTUBE_API_KEY;
+
+    // 🔍 Search channel
+    const searchRes = await fetch(
+      `https://www.googleapis.com/youtube/v3/search?part=snippet&q=${encodeURIComponent(
+        channelName
+      )}&type=channel&maxResults=1&key=${API_KEY}`
+    );
+
+    const searchData = await searchRes.json();
+
+    if (!searchData.items || searchData.items.length === 0) {
+      return NextResponse.json({ error: "Channel not found" });
+    }
+
+    const channelId = searchData.items[0].id.channelId;
+
+    // 📊 Get stats
+    const statsRes = await fetch(
+      `https://www.googleapis.com/youtube/v3/channels?part=statistics&id=${channelId}&key=${API_KEY}`
+    );
+
+    const statsData = await statsRes.json();
+    const stats = statsData.items[0].statistics;
+
+    const subscribers = parseInt(stats.subscriberCount || "0");
+    const views = parseInt(stats.viewCount || "0");
+    const videos = parseInt(stats.videoCount || "1");
+
+    const avgViews = views / videos;
+    const engagementRatio =
+      subscribers > 0 ? Math.min(avgViews / subscribers, 1) : 0;
+
+    const tier = getTier(subscribers);
+    if (!tier) return NextResponse.json({ error: "Tier error" });
+
+    const { min, max, label, scoreMin, scoreMax } = tier;
+
+    const scalePosition =
+      max !== Infinity ? (subscribers - min) / (max - min) : 1;
+
+    const consistencyScore = Math.min(Math.log10(videos + 1) / 4, 1);
+    const activityScore = Math.min(Math.log10(videos + 1) / 4, 1);
+
+    const tierPerformance =
+      0.4 * scalePosition +
+      0.3 * engagementRatio +
+      0.15 * consistencyScore +
+      0.15 * activityScore;
+
+    const finalScore =
+      scoreMin + tierPerformance * (scoreMax - scoreMin);
+
+    // 💾 INSERT INTO SUPABASE
+    if (userId) {
+      const { error } = await supabase.from("creators").insert({
+        user_id: userId,
+        name: channelName,
+        platform: "youtube",
+        followers: subscribers,
+        posts: videos,
+        avg_views: Math.round(avgViews),
+        engagement_rate: parseFloat(engagementRatio.toFixed(3)),
+        influence_score: parseFloat(finalScore.toFixed(2)),
+        tier: label,
+      });
+
+      if (error) {
+        console.log("SUPABASE INSERT ERROR:", error);
+      } else {
+        console.log("INSERT SUCCESS");
+      }
+    }
+
+    return NextResponse.json({
+      tier: label,
+      subscribers,
+      totalViews: views,
+      videos,
+      avgViews: Math.round(avgViews),
+      engagementRatio: engagementRatio.toFixed(3),
+      scalePosition: Math.round(scalePosition * 100),
+      consistencyScore: Math.round(consistencyScore * 100),
+      activityScore: Math.round(activityScore * 100),
+      influenceScore: finalScore.toFixed(2),
+    });
+
+  } catch (err) {
+    console.log("API ERROR:", err);
+    return NextResponse.json({ error: "Internal server error" });
   }
-
-  const API_KEY = process.env.YOUTUBE_API_KEY;
-
-  // Search channel
-  const searchRes = await fetch(
-    `https://www.googleapis.com/youtube/v3/search?part=snippet&q=${encodeURIComponent(
-      channelName
-    )}&type=channel&maxResults=1&key=${API_KEY}`
-  );
-
-  const searchData = await searchRes.json();
-
-  console.log("SEARCH DATA:", searchData);
-  console.log("API KEY EXISTS:", !!process.env.YOUTUBE_API_KEY);
-
-  if (!searchData.items || searchData.items.length === 0) {
-    return NextResponse.json({ error: "Channel not found" });
-  }
-
-  const channelId = searchData.items[0].id.channelId;
-
-  // Get stats
-  const statsRes = await fetch(
-    `https://www.googleapis.com/youtube/v3/channels?part=statistics&id=${channelId}&key=${API_KEY}`
-  );
-
-  const statsData = await statsRes.json();
-  const stats = statsData.items[0].statistics;
-
-  const subscribers = parseInt(stats.subscriberCount || "0");
-  const views = parseInt(stats.viewCount || "0");
-  const videos = parseInt(stats.videoCount || "1");
-
-  const avgViews = views / videos;
-  const engagementRatio =
-    subscribers > 0 ? Math.min(avgViews / subscribers, 1) : 0;
-
-  const tier = getTier(subscribers);
-  if (!tier) return NextResponse.json({ error: "Tier error" });
-
-  const { min, max, label, scoreMin, scoreMax } = tier;
-
-  const scalePosition =
-    max !== Infinity ? (subscribers - min) / (max - min) : 1;
-
-  const consistencyScore = Math.min(Math.log10(videos + 1) / 4, 1);
-  const activityScore = Math.min(Math.log10(videos + 1) / 4, 1);
-
-  const tierPerformance =
-    0.4 * scalePosition +
-    0.3 * engagementRatio +
-    0.15 * consistencyScore +
-    0.15 * activityScore;
-
-  const finalScore =
-    scoreMin + tierPerformance * (scoreMax - scoreMin);
-  const userId = req.headers.get("x-user-id");
-
-if (userId) {
-  await supabase.from("creators").insert({
-    user_id: userId,
-    name: channelName,
-    platform: "youtube",
-    followers: subscribers,
-    posts: videos,
-    avg_views: Math.round(avgViews),
-    engagement_rate: parseFloat(engagementRatio.toFixed(3)),
-    influence_score: parseFloat(finalScore.toFixed(2)),
-    tier: label,
-  });
-}
-  return NextResponse.json({
-    tier: label,
-    subscribers,
-    totalViews: views,
-    videos,
-    avgViews: Math.round(avgViews),
-    engagementRatio: engagementRatio.toFixed(3),
-    scalePosition: Math.round(scalePosition * 100),
-    consistencyScore: Math.round(consistencyScore * 100),
-    activityScore: Math.round(activityScore * 100),
-    influenceScore: finalScore.toFixed(2),
-  });
 }

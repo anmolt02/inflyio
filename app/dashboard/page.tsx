@@ -22,17 +22,11 @@ export default function Dashboard() {
 
       // 👇 get logged-in user
       const { data: sessionData } = await supabase.auth.getSession();
-      const user = sessionData.session?.user;
+const user = sessionData.session?.user;
 
-      const response = await fetch(
-        `/api/youtube-score?name=${encodeURIComponent(input)}`,
-        {
-          headers: {
-            "x-user-id": user?.id || "",
-          },
-        }
-      );
-
+const response = await fetch(
+  `/api/youtube-score?name=${encodeURIComponent(input)}&userId=${user?.id}`
+);
       const result = await response.json();
 
       if (!response.ok || result.error) {
