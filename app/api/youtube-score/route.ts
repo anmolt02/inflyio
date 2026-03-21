@@ -1,6 +1,10 @@
 export const runtime = "nodejs";
 import { NextResponse } from "next/server";
-
+import { createClient } from "@supabase/supabase-js";
+const supabase = createClient(
+  process.env.NEXT_PUBLIC_SUPABASE_URL!,
+  process.env.SUPABASE_SERVICE_ROLE_KEY!
+);
 type Tier = {
   min: number;
   max: number;
@@ -96,7 +100,21 @@ export async function GET(req: Request) {
 
   const finalScore =
     scoreMin + tierPerformance * (scoreMax - scoreMin);
+  const userId = req.headers.get("x-user-id");
 
+if (userId) {
+  await supabase.from("creators").insert({
+    user_id: userId,
+    name: channelName,
+    platform: "youtube",
+    followers: subscribers,
+    posts: videos,
+    avg_views: Math.round(avgViews),
+    engagement_rate: parseFloat(engagementRatio.toFixed(3)),
+    influence_score: parseFloat(finalScore.toFixed(2)),
+    tier: label,
+  });
+}
   return NextResponse.json({
     tier: label,
     subscribers,
