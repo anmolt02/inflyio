@@ -4,47 +4,68 @@ import { useState } from "react";
 import { supabase } from "@/lib/supabase";
 import type { YoutubeScoreResponse } from "@/app/api/youtube-score/route";
 
-// ─── Tier display config ──────────────────────────────────────────────────────
+// ─── Theme tokens ─────────────────────────────────────────────────────────────
+const C = {
+  bg:         "#07080C",
+  surface:    "rgba(255,255,255,0.03)",
+  surfaceHov: "rgba(255,255,255,0.05)",
+  border:     "rgba(255,255,255,0.07)",
+  borderMid:  "rgba(255,255,255,0.12)",
+  blue:       "#60A5FA",           // primary accent
+  blueDim:    "rgba(96,165,250,0.12)",
+  blueBorder: "rgba(96,165,250,0.28)",
+  blueGlow:   "0 0 22px rgba(96,165,250,0.18)",
+  cyan:       "#67E8F9",
+  green:      "#34D399",
+  amber:      "#FBBF24",
+  red:        "#F87171",
+  textPri:    "#F1F5F9",
+  textSec:    "#64748B",
+  textMid:    "#94A3B8",
+};
+
+// ─── Tier config — grey/blue palette ─────────────────────────────────────────
 const TIER_CONFIG: Record<string, { color: string; bg: string; glow: string }> = {
-  Titan:           { color: "#67E8F9", bg: "rgba(103,232,249,0.12)", glow: "0 0 20px rgba(103,232,249,0.2)" },
-  "Global Icon":   { color: "#C084FC", bg: "rgba(192,132,252,0.12)", glow: "0 0 20px rgba(192,132,252,0.2)" },
-  Superstar:       { color: "#F472B6", bg: "rgba(244,114,182,0.12)", glow: "0 0 20px rgba(244,114,182,0.2)" },
-  Elite:           { color: "#FCD34D", bg: "rgba(252,211,77,0.12)",  glow: "0 0 20px rgba(252,211,77,0.2)"  },
-  "Power Creator": { color: "#F5A623", bg: "rgba(245,166,35,0.12)",  glow: "0 0 20px rgba(245,166,35,0.2)"  },
-  Major:           { color: "#F5A623", bg: "rgba(245,166,35,0.10)",  glow: "none" },
-  Influencer:      { color: "#34D399", bg: "rgba(52,211,153,0.10)",  glow: "none" },
-  Recognized:      { color: "#60A5FA", bg: "rgba(96,165,250,0.10)",  glow: "none" },
-  Established:     { color: "#94A3B8", bg: "rgba(148,163,184,0.10)", glow: "none" },
-  Developing:      { color: "#94A3B8", bg: "rgba(148,163,184,0.08)", glow: "none" },
-  Rising:          { color: "#6B7280", bg: "rgba(107,114,128,0.08)", glow: "none" },
-  Emerging:        { color: "#6B7280", bg: "rgba(107,114,128,0.08)", glow: "none" },
+  Titan:           { color: "#67E8F9", bg: "rgba(103,232,249,0.10)", glow: "0 0 20px rgba(103,232,249,0.18)" },
+  "Global Icon":   { color: "#A78BFA", bg: "rgba(167,139,250,0.10)", glow: "0 0 20px rgba(167,139,250,0.18)" },
+  Superstar:       { color: "#60A5FA", bg: "rgba(96,165,250,0.10)",  glow: "0 0 20px rgba(96,165,250,0.18)"  },
+  Elite:           { color: "#67E8F9", bg: "rgba(103,232,249,0.08)", glow: "0 0 16px rgba(103,232,249,0.15)" },
+  "Power Creator": { color: "#60A5FA", bg: "rgba(96,165,250,0.08)",  glow: "0 0 16px rgba(96,165,250,0.15)"  },
+  Major:           { color: "#60A5FA", bg: "rgba(96,165,250,0.07)",  glow: "none" },
+  Influencer:      { color: "#34D399", bg: "rgba(52,211,153,0.08)",  glow: "none" },
+  Recognized:      { color: "#94A3B8", bg: "rgba(148,163,184,0.08)", glow: "none" },
+  Established:     { color: "#64748B", bg: "rgba(100,116,139,0.08)", glow: "none" },
+  Developing:      { color: "#64748B", bg: "rgba(100,116,139,0.06)", glow: "none" },
+  Rising:          { color: "#475569", bg: "rgba(71,85,105,0.06)",   glow: "none" },
+  Emerging:        { color: "#475569", bg: "rgba(71,85,105,0.06)",   glow: "none" },
 };
 
 function getTierStyle(tier: string) {
-  return TIER_CONFIG[tier] ?? { color: "#F5A623", bg: "rgba(245,166,35,0.10)", glow: "none" };
+  return TIER_CONFIG[tier] ?? { color: C.blue, bg: C.blueDim, glow: C.blueGlow };
 }
 
 // ─── Score ring ───────────────────────────────────────────────────────────────
 function ScoreRing({ score, tier }: { score: number; tier: string }) {
-  const t = getTierStyle(tier);
-  const r = 54;
+  const t   = getTierStyle(tier);
+  const r   = 54;
   const circ = 2 * Math.PI * r;
-  const pct = Math.min(score, 100) / 100;
+  const pct  = Math.min(score, 100) / 100;
 
   return (
     <div style={{ position: "relative", width: "140px", height: "140px", margin: "0 auto" }}>
       <svg width="140" height="140" viewBox="0 0 140 140" style={{ transform: "rotate(-90deg)" }}>
-        <circle cx="70" cy="70" r={r} fill="none" stroke="rgba(255,255,255,0.06)" strokeWidth="10" />
+        <circle cx="70" cy="70" r={r} fill="none" stroke="rgba(255,255,255,0.05)" strokeWidth="9" />
         <circle
           cx="70" cy="70" r={r} fill="none"
-          stroke={t.color} strokeWidth="10" strokeLinecap="round"
+          stroke={t.color} strokeWidth="9" strokeLinecap="round"
           strokeDasharray={`${circ * pct} ${circ}`}
           style={{ transition: "stroke-dasharray 1.2s cubic-bezier(.4,0,.2,1)" }}
         />
       </svg>
       <div style={{
         position: "absolute", inset: 0,
-        display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center",
+        display: "flex", flexDirection: "column",
+        alignItems: "center", justifyContent: "center",
       }}>
         <span style={{
           fontFamily: "'Syne', sans-serif", fontWeight: 800,
@@ -52,7 +73,7 @@ function ScoreRing({ score, tier }: { score: number; tier: string }) {
         }}>
           {score.toFixed(1)}
         </span>
-        <span style={{ fontSize: "10px", color: "#6B7280", marginTop: "2px", letterSpacing: ".08em" }}>
+        <span style={{ fontSize: "10px", color: C.textSec, marginTop: "3px", letterSpacing: ".1em" }}>
           SCORE
         </span>
       </div>
@@ -66,13 +87,10 @@ function MetricRow({ label, value }: { label: string; value: string | number }) 
     <div style={{
       display: "flex", justifyContent: "space-between", alignItems: "center",
       padding: "9px 0",
-      borderBottom: "1px solid rgba(255,255,255,0.05)",
+      borderBottom: `1px solid ${C.border}`,
     }}>
-      <span style={{ fontSize: "12px", color: "#6B7280" }}>{label}</span>
-      <span style={{
-        fontSize: "13px", color: "#F9FAFB",
-        fontFamily: "'DM Mono', monospace", fontWeight: 500,
-      }}>
+      <span style={{ fontSize: "12px", color: C.textSec }}>{label}</span>
+      <span style={{ fontSize: "13px", color: C.textPri, fontFamily: "'DM Mono',monospace", fontWeight: 500 }}>
         {value}
       </span>
     </div>
@@ -84,13 +102,13 @@ function ScoreBar({ label, value, color }: { label: string; value: number; color
   return (
     <div>
       <div style={{ display: "flex", justifyContent: "space-between", marginBottom: "6px" }}>
-        <span style={{ fontSize: "12px", color: "#9CA3AF" }}>{label}</span>
-        <span style={{ fontSize: "12px", color, fontFamily: "'DM Mono', monospace" }}>{value}%</span>
+        <span style={{ fontSize: "12px", color: C.textMid }}>{label}</span>
+        <span style={{ fontSize: "12px", color, fontFamily: "'DM Mono',monospace" }}>{value}%</span>
       </div>
-      <div style={{ height: "4px", background: "rgba(255,255,255,0.06)", borderRadius: "4px", overflow: "hidden" }}>
+      <div style={{ height: "3px", background: "rgba(255,255,255,0.06)", borderRadius: "4px", overflow: "hidden" }}>
         <div style={{
           height: "100%", width: `${value}%`,
-          background: `linear-gradient(90deg, ${color}80, ${color})`,
+          background: `linear-gradient(90deg, ${color}60, ${color})`,
           borderRadius: "4px",
           transition: "width 1s cubic-bezier(.4,0,.2,1)",
         }} />
@@ -99,7 +117,7 @@ function ScoreBar({ label, value, color }: { label: string; value: number; color
   );
 }
 
-// ─── Format helper ────────────────────────────────────────────────────────────
+// ─── Helpers ──────────────────────────────────────────────────────────────────
 function fmt(n: number): string {
   if (n >= 1_000_000) return `${(n / 1_000_000).toFixed(2)}M`;
   if (n >= 1_000)     return `${(n / 1_000).toFixed(1)}K`;
@@ -122,19 +140,13 @@ export default function DashboardPage() {
 
       const { data: session } = await supabase.auth.getSession();
       const userId = session.session?.user?.id ?? null;
-
-      const url =
-        `/api/youtube-score?name=${encodeURIComponent(input.trim())}` +
-        (userId ? `&userId=${userId}` : "");
+      const url    = `/api/youtube-score?name=${encodeURIComponent(input.trim())}` +
+                     (userId ? `&userId=${userId}` : "");
 
       const res  = await fetch(url);
       const json = await res.json();
 
-      if (!res.ok || json.error) {
-        setError(json.error ?? "Something went wrong");
-        return;
-      }
-
+      if (!res.ok || json.error) { setError(json.error ?? "Something went wrong"); return; }
       setData(json as YoutubeScoreResponse);
     } catch {
       setError("Failed to analyze channel. Check your connection.");
@@ -147,92 +159,81 @@ export default function DashboardPage() {
 
   return (
     <>
-      {/* ── Styles ─────────────────────────────────────────────────────── */}
       <style>{`
-        @keyframes fade-up {
-          from { opacity: 0; transform: translateY(14px); }
-          to   { opacity: 1; transform: translateY(0); }
-        }
-        @keyframes spin        { to { transform: rotate(360deg); } }
-        @keyframes pulse-dot   { 0%,100% { opacity: 1; } 50% { opacity: .3; } }
-
-        .f1 { animation: fade-up .45s ease both; }
-        .f2 { animation: fade-up .45s .1s ease both; }
-        .f3 { animation: fade-up .45s .2s ease both; }
-        .f4 { animation: fade-up .45s .3s ease both; }
-
-        .sinput:focus {
-          outline: none;
-          border-color: rgba(245,166,35,.45) !important;
-        }
-        .abtn {
-          transition: opacity .15s, transform .1s;
-        }
-        .abtn:hover:not(:disabled) { opacity: .88; }
-        .abtn:active:not(:disabled) { transform: scale(.98); }
+        @keyframes fade-up  { from { opacity:0; transform:translateY(14px) } to { opacity:1; transform:translateY(0) } }
+        @keyframes spin      { to { transform:rotate(360deg) } }
+        @keyframes pulse-dot { 0%,100% { opacity:1 } 50% { opacity:.3 } }
+        .f1 { animation: fade-up .45s ease both }
+        .f2 { animation: fade-up .45s .08s ease both }
+        .f3 { animation: fade-up .45s .16s ease both }
+        .f4 { animation: fade-up .45s .24s ease both }
+        .sinput:focus { outline:none; border-color: ${C.blueBorder} !important; box-shadow: ${C.blueGlow} !important; }
+        .abtn { transition: opacity .15s, transform .1s }
+        .abtn:hover:not(:disabled) { opacity:.88 }
+        .abtn:active:not(:disabled) { transform:scale(.98) }
       `}</style>
 
-      {/* ── Page wrapper ───────────────────────────────────────────────── */}
       <div style={{
-        padding: "28px 32px",
-        maxWidth: "1100px",
+        padding: "32px 36px",
+        maxWidth: "1080px",
         fontFamily: "'DM Mono', monospace",
-        color: "#F9FAFB",
+        color: C.textPri,
       }}>
 
-        {/* Hero ── */}
-        <div className="f1" style={{ marginBottom: "28px" }}>
-          <div style={{ display: "flex", alignItems: "center", gap: "8px", marginBottom: "8px" }}>
+        {/* ── Hero ────────────────────────────────────────────────────── */}
+        <div className="f1" style={{ marginBottom: "32px" }}>
+          <div style={{ display: "flex", alignItems: "center", gap: "8px", marginBottom: "10px" }}>
             <span style={{
               width: "7px", height: "7px", borderRadius: "50%",
-              background: "#34D399", boxShadow: "0 0 8px #34D399",
-              display: "inline-block",
-              animation: "pulse-dot 2s infinite",
+              background: C.green, boxShadow: `0 0 8px ${C.green}`,
+              display: "inline-block", animation: "pulse-dot 2s infinite",
             }} />
-            <span style={{
-              fontSize: "10px", color: "#34D399",
-              letterSpacing: ".1em", textTransform: "uppercase",
-            }}>
+            <span style={{ fontSize: "10px", color: C.green, letterSpacing: ".12em", textTransform: "uppercase" }}>
               YouTube Analysis Live
             </span>
           </div>
           <h1 style={{
             fontFamily: "'Syne', sans-serif", fontWeight: 800,
-            fontSize: "1.9rem", letterSpacing: "-.025em",
-            margin: 0,
+            fontSize: "2rem", letterSpacing: "-.025em", margin: 0,
+            color: C.textPri,
           }}>
             Creator{" "}
             <span style={{
-              background: "linear-gradient(90deg, #F5A623, #FBBF24)",
-              WebkitBackgroundClip: "text",
-              WebkitTextFillColor: "transparent",
+              background: `linear-gradient(90deg, ${C.blue}, ${C.cyan})`,
+              WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent",
             }}>
               Intelligence
             </span>
           </h1>
-          <p style={{ fontSize: "12px", color: "#4B5563", marginTop: "5px", maxWidth: "480px" }}>
+          <p style={{ fontSize: "12px", color: C.textSec, marginTop: "6px", maxWidth: "500px", lineHeight: 1.7 }}>
             AI-powered influence scoring for YouTube creators. Analyze performance
             and identify high-impact talent instantly.
           </p>
         </div>
 
-        {/* Search ── */}
-        <div className="f2" style={{
-          background: "rgba(255,255,255,.025)",
-          border: "1px solid rgba(255,255,255,.07)",
-          borderRadius: "14px",
-          padding: "20px",
-          marginBottom: "24px",
-        }}>
-          <div style={{ display: "flex", gap: "12px" }}>
-            <div style={{ position: "relative", flex: 1 }}>
-              <span style={{
-                position: "absolute", left: "14px", top: "50%",
-                transform: "translateY(-50%)",
-                color: "#4B5563", fontSize: "14px", pointerEvents: "none",
-              }}>
-                ▶
-              </span>
+        {/* ── Search bar ──────────────────────────────────────────────── */}
+        <div className="f2" style={{ marginBottom: "28px" }}>
+
+          {/* Label */}
+          <div style={{ fontSize: "10px", color: C.textSec, letterSpacing: ".1em", textTransform: "uppercase", marginBottom: "10px" }}>
+            Analyze a Channel
+          </div>
+
+          {/* Input row — input and button are SIBLINGS, not nested */}
+          <div style={{ display: "flex", gap: "10px", alignItems: "stretch" }}>
+
+            {/* Input wrapper */}
+            <div style={{
+              flex: 1,
+              background: "rgba(15,20,30,0.7)",
+              border: `1px solid ${C.borderMid}`,
+              borderRadius: "10px",
+              display: "flex", alignItems: "center",
+              padding: "0 14px",
+              gap: "10px",
+              backdropFilter: "blur(8px)",
+            }}>
+              <span style={{ color: C.textSec, fontSize: "13px", flexShrink: 0 }}>▶</span>
               <input
                 type="text"
                 placeholder="Enter YouTube channel name…"
@@ -241,43 +242,46 @@ export default function DashboardPage() {
                 onKeyDown={(e) => e.key === "Enter" && analyze()}
                 className="sinput"
                 style={{
-                  width: "100%",
-                  padding: "12px 14px 12px 36px",
-                  borderRadius: "10px",
-                  background: "rgba(0,0,0,.4)",
-                  border: "1px solid rgba(255,255,255,.09)",
-                  color: "#F9FAFB",
+                  flex: 1,
+                  background: "transparent",
+                  border: "none",
+                  outline: "none",
+                  color: C.textPri,
                   fontSize: "13px",
                   fontFamily: "'DM Mono', monospace",
-                  transition: "border-color .2s",
+                  padding: "13px 0",
                 }}
               />
             </div>
+
+            {/* Analyze button — completely separate from input box */}
             <button
               onClick={analyze}
               disabled={loading}
               className="abtn"
               style={{
-                padding: "12px 28px",
+                padding: "0 28px",
                 borderRadius: "10px",
-                background: "linear-gradient(135deg, #F5A623, #C97B00)",
+                background: `linear-gradient(135deg, ${C.blue}, #3B82F6)`,
                 border: "none",
-                color: "#07070A",
+                color: "#07080C",
                 fontFamily: "'Syne', sans-serif",
                 fontWeight: 700,
                 fontSize: "13px",
                 cursor: loading ? "not-allowed" : "pointer",
-                opacity: loading ? 0.6 : 1,
+                opacity: loading ? 0.65 : 1,
                 display: "flex", alignItems: "center", gap: "8px",
                 whiteSpace: "nowrap",
+                flexShrink: 0,
+                minHeight: "46px",
               }}
             >
               {loading ? (
                 <>
                   <span style={{
-                    width: "14px", height: "14px",
-                    border: "2px solid rgba(0,0,0,.3)",
-                    borderTopColor: "#07070A",
+                    width: "13px", height: "13px",
+                    border: "2px solid rgba(0,0,0,0.25)",
+                    borderTopColor: "#07080C",
                     borderRadius: "50%",
                     display: "inline-block",
                     animation: "spin .7s linear infinite",
@@ -288,129 +292,131 @@ export default function DashboardPage() {
             </button>
           </div>
 
+          {/* Error */}
           {error && (
             <div style={{
-              marginTop: "12px", padding: "10px 14px",
-              background: "rgba(248,113,113,.08)",
-              border: "1px solid rgba(248,113,113,.2)",
+              marginTop: "10px", padding: "10px 14px",
+              background: "rgba(248,113,113,0.07)",
+              border: "1px solid rgba(248,113,113,0.2)",
               borderRadius: "8px",
-              fontSize: "12px", color: "#F87171",
+              fontSize: "12px", color: C.red,
             }}>
               ⚠ {error}
             </div>
           )}
         </div>
 
-        {/* Results ── */}
+        {/* ── Results ─────────────────────────────────────────────────── */}
         {data && ts && (
           <>
             {/* Channel header */}
             <div className="f3" style={{
               display: "flex", alignItems: "center",
               justifyContent: "space-between",
-              marginBottom: "18px",
+              marginBottom: "16px",
             }}>
               <div>
                 <h2 style={{
                   fontFamily: "'Syne', sans-serif", fontWeight: 800,
-                  fontSize: "1.3rem", margin: 0,
+                  fontSize: "1.25rem", margin: 0, color: C.textPri,
                 }}>
                   {data.channelName}
                 </h2>
-                <span style={{ fontSize: "11px", color: "#4B5563" }}>
+                <span style={{ fontSize: "11px", color: C.textSec }}>
                   YouTube · {data.channelId}
                 </span>
               </div>
               <div style={{
-                padding: "8px 16px", borderRadius: "8px",
+                padding: "7px 16px", borderRadius: "8px",
                 background: ts.bg,
-                border: `1px solid ${ts.color}44`,
+                border: `1px solid ${ts.color}40`,
                 color: ts.color,
-                fontSize: "12px", fontWeight: 600,
+                fontSize: "11px", fontWeight: 600,
+                letterSpacing: ".06em", textTransform: "uppercase",
                 boxShadow: ts.glow,
               }}>
                 {data.tier}
               </div>
             </div>
 
-            {/* 3-col results grid */}
+            {/* 3-col grid */}
             <div className="f4" style={{
               display: "grid",
-              gridTemplateColumns: "200px 1fr 1fr",
-              gap: "16px",
-              marginBottom: "16px",
+              gridTemplateColumns: "190px 1fr 1fr",
+              gap: "14px",
+              marginBottom: "14px",
             }}>
 
-              {/* Score ring */}
+              {/* Score ring card */}
               <div style={{
                 background: ts.bg,
-                border: `1px solid ${ts.color}33`,
+                border: `1px solid ${ts.color}30`,
                 borderRadius: "14px",
-                padding: "24px 20px",
+                padding: "24px 18px",
                 display: "flex", flexDirection: "column",
-                alignItems: "center", gap: "12px",
+                alignItems: "center", gap: "10px",
                 boxShadow: ts.glow,
               }}>
                 <ScoreRing score={parseFloat(data.influenceScore)} tier={data.tier} />
                 <span style={{
-                  fontSize: "11px", color: ts.color,
-                  fontWeight: 600, letterSpacing: ".06em",
+                  fontSize: "10px", color: ts.color,
+                  fontWeight: 600, letterSpacing: ".08em", textTransform: "uppercase",
                 }}>
-                  {data.tier.toUpperCase()}
+                  {data.tier}
                 </span>
               </div>
 
               {/* Channel stats */}
               <div style={{
-                background: "rgba(255,255,255,.025)",
-                border: "1px solid rgba(255,255,255,.07)",
+                background: C.surface,
+                border: `1px solid ${C.border}`,
                 borderRadius: "14px",
                 padding: "20px 22px",
               }}>
                 <div style={{
-                  fontSize: "10px", color: "#6B7280",
+                  fontSize: "10px", color: C.textSec,
                   letterSpacing: ".1em", textTransform: "uppercase",
-                  marginBottom: "4px",
+                  marginBottom: "6px",
                 }}>
                   Channel Stats
                 </div>
-                <MetricRow label="Subscribers"       value={fmt(data.subscribers)} />
-                <MetricRow label="Total Views"        value={fmt(data.totalViews)} />
-                <MetricRow label="Videos"             value={data.videos.toLocaleString()} />
-                <MetricRow label="Avg Views / Video"  value={fmt(data.avgViews)} />
-                <MetricRow label="Engagement Ratio"   value={data.engagementRatio} />
+                <MetricRow label="Subscribers"      value={fmt(data.subscribers)} />
+                <MetricRow label="Total Views"       value={fmt(data.totalViews)} />
+                <MetricRow label="Videos"            value={data.videos.toLocaleString()} />
+                <MetricRow label="Avg Views / Video" value={fmt(data.avgViews)} />
+                <MetricRow label="Engagement Ratio"  value={data.engagementRatio} />
               </div>
 
               {/* Performance breakdown */}
               <div style={{
-                background: "rgba(255,255,255,.025)",
-                border: "1px solid rgba(255,255,255,.07)",
+                background: C.surface,
+                border: `1px solid ${C.border}`,
                 borderRadius: "14px",
                 padding: "20px 22px",
                 display: "flex", flexDirection: "column", gap: "14px",
               }}>
                 <div style={{
-                  fontSize: "10px", color: "#6B7280",
+                  fontSize: "10px", color: C.textSec,
                   letterSpacing: ".1em", textTransform: "uppercase",
                 }}>
                   Performance Breakdown
                 </div>
-                <ScoreBar label="Scale Position"  value={data.scalePosition}    color="#F5A623" />
-                <ScoreBar label="Consistency"     value={data.consistencyScore} color="#34D399" />
-                <ScoreBar label="Activity"        value={data.activityScore}    color="#60A5FA" />
+                <ScoreBar label="Scale Position"  value={data.scalePosition}    color={C.blue}  />
+                <ScoreBar label="Consistency"     value={data.consistencyScore} color={C.green} />
+                <ScoreBar label="Activity"        value={data.activityScore}    color={C.cyan}  />
 
-                {/* Final score callout */}
+                {/* Score callout */}
                 <div style={{
-                  marginTop: "4px", padding: "11px 14px",
-                  background: "rgba(245,166,35,.07)",
-                  border: "1px solid rgba(245,166,35,.2)",
+                  marginTop: "2px", padding: "11px 14px",
+                  background: C.blueDim,
+                  border: `1px solid ${C.blueBorder}`,
                   borderRadius: "9px",
                   display: "flex", justifyContent: "space-between", alignItems: "center",
                 }}>
-                  <span style={{ fontSize: "11px", color: "#9CA3AF" }}>Influence Score</span>
+                  <span style={{ fontSize: "11px", color: C.textMid }}>Influence Score</span>
                   <span style={{
                     fontFamily: "'Syne', sans-serif", fontWeight: 800,
-                    fontSize: "1.3rem", color: "#F5A623",
+                    fontSize: "1.3rem", color: C.blue,
                   }}>
                     {parseFloat(data.influenceScore).toFixed(1)}
                   </span>
@@ -420,8 +426,8 @@ export default function DashboardPage() {
 
             {/* Platform bar */}
             <div style={{
-              background: "rgba(255,255,255,.02)",
-              border: "1px solid rgba(255,255,255,.055)",
+              background: "rgba(255,255,255,0.018)",
+              border: `1px solid ${C.border}`,
               borderRadius: "12px",
               padding: "14px 20px",
               display: "flex", alignItems: "center",
@@ -431,37 +437,27 @@ export default function DashboardPage() {
               <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
                 <div style={{
                   width: "28px", height: "28px", borderRadius: "7px",
-                  background: "rgba(255,68,68,.12)",
+                  background: "rgba(255,68,68,0.12)",
                   display: "flex", alignItems: "center", justifyContent: "center",
-                  color: "#FF4444", fontSize: "13px",
+                  color: "#FF4444", fontSize: "12px",
                 }}>
                   ▶
                 </div>
                 <div>
-                  <div style={{
-                    fontSize: "12px",
-                    fontFamily: "'Syne', sans-serif", fontWeight: 600,
-                  }}>
-                    YouTube
-                  </div>
-                  <div style={{ fontSize: "10px", color: "#4B5563" }}>Active connection</div>
+                  <div style={{ fontSize: "12px", fontFamily: "'Syne',sans-serif", fontWeight: 600 }}>YouTube</div>
+                  <div style={{ fontSize: "10px", color: C.textSec }}>Active connection</div>
                 </div>
               </div>
 
               <div style={{ display: "flex", gap: "24px" }}>
                 {[
-                  { l: "Subscribers", v: fmt(data.subscribers) },
-                  { l: "Total Views",  v: fmt(data.totalViews)  },
-                  { l: "Videos",       v: data.videos.toLocaleString() },
+                  { l: "Subscribers", v: fmt(data.subscribers)         },
+                  { l: "Total Views",  v: fmt(data.totalViews)          },
+                  { l: "Videos",       v: data.videos.toLocaleString()  },
                 ].map(({ l, v }) => (
                   <div key={l} style={{ textAlign: "right" }}>
-                    <div style={{ fontSize: "10px", color: "#4B5563" }}>{l}</div>
-                    <div style={{
-                      fontSize: "13px",
-                      fontFamily: "'Syne', sans-serif", fontWeight: 700,
-                    }}>
-                      {v}
-                    </div>
+                    <div style={{ fontSize: "10px", color: C.textSec }}>{l}</div>
+                    <div style={{ fontSize: "13px", fontFamily: "'Syne',sans-serif", fontWeight: 700 }}>{v}</div>
                   </div>
                 ))}
               </div>
@@ -469,9 +465,9 @@ export default function DashboardPage() {
               {["Instagram", "X (Twitter)"].map((p) => (
                 <div key={p} style={{
                   padding: "6px 12px", borderRadius: "7px",
-                  background: "rgba(255,255,255,.03)",
-                  border: "1px solid rgba(255,255,255,.06)",
-                  fontSize: "11px", color: "#4B5563",
+                  background: "rgba(255,255,255,0.03)",
+                  border: `1px solid ${C.border}`,
+                  fontSize: "11px", color: C.textSec,
                 }}>
                   {p} · soon
                 </div>
@@ -480,20 +476,17 @@ export default function DashboardPage() {
           </>
         )}
 
-        {/* Empty state ── */}
+        {/* ── Empty state ──────────────────────────────────────────────── */}
         {!data && !loading && (
-          <div style={{
-            marginTop: "64px", textAlign: "center",
-            color: "#374151",
-          }}>
-            <div style={{ fontSize: "36px", marginBottom: "12px", opacity: .4 }}>▶</div>
+          <div style={{ marginTop: "72px", textAlign: "center", color: C.textSec }}>
+            <div style={{ fontSize: "32px", marginBottom: "14px", opacity: .25 }}>▶</div>
             <div style={{
-              fontFamily: "'Syne', sans-serif", fontWeight: 700,
-              fontSize: "15px", marginBottom: "6px",
+              fontFamily: "'Syne',sans-serif", fontWeight: 700,
+              fontSize: "15px", color: C.textMid, marginBottom: "6px",
             }}>
               Search a YouTube channel to begin
             </div>
-            <div style={{ fontSize: "12px" }}>
+            <div style={{ fontSize: "12px", color: C.textSec }}>
               Try: MrBeast · PewDiePie · Linus Tech Tips
             </div>
           </div>

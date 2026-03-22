@@ -8,44 +8,44 @@ import type { User } from "@supabase/supabase-js";
 
 // ─── Nav structure ────────────────────────────────────────────────────────────
 const MAIN_NAV = [
-  { label: "Dashboard", href: "/dashboard", icon: "◼" },
+  { label: "Dashboard", href: "/dashboard",           icon: "◼" },
   { label: "Analytics",  href: "/dashboard/analytics", icon: "▲" },
   { label: "Content",    href: "/dashboard/content",   icon: "▶", badge: "New", badgeType: "new" },
   { label: "Audience",   href: "/dashboard/audience",  icon: "◉" },
 ];
 
 const PLATFORM_NAV = [
-  { label: "YouTube",   href: "/dashboard/youtube",   icon: "▶", iconColor: "#FF4444", badge: "Live", badgeType: "live" },
-  { label: "Instagram", href: "/dashboard/instagram", icon: "◉", iconColor: "#E1306C", badge: "Soon", badgeType: "soon" },
-  { label: "X / Twitter", href: "/dashboard/twitter", icon: "✕", iconColor: "#1DA1F2", badge: "Soon", badgeType: "soon" },
+  { label: "YouTube",    href: "/dashboard/youtube",   icon: "▶", iconColor: "#FF4444", badge: "Live", badgeType: "live" },
+  { label: "Instagram",  href: "/dashboard/instagram", icon: "◉", iconColor: "#E1306C", badge: "Soon", badgeType: "soon" },
+  { label: "X / Twitter",href: "/dashboard/twitter",   icon: "✕", iconColor: "#60A5FA", badge: "Soon", badgeType: "soon" },
 ];
 
 const OTHER_NAV = [
-  { label: "Contact",  href: "/contact",           icon: "✉" },
+  { label: "Contact",  href: "/contact",            icon: "✉" },
   { label: "Settings", href: "/dashboard/settings", icon: "⚙" },
 ];
 
-// ─── Badge renderer ───────────────────────────────────────────────────────────
+// ─── Badge ────────────────────────────────────────────────────────────────────
 function NavBadge({ type, label }: { type: string; label: string }) {
-  const styles: Record<string, { background: string; color: string; content?: string }> = {
-    new:  { background: "rgba(245,166,35,.12)", color: "#F5A623" },
-    live: { background: "rgba(52,211,153,.1)",  color: "#34D399", content: "●" },
-    soon: { background: "rgba(255,255,255,.05)", color: "#4B5563" },
+  const map: Record<string, { bg: string; color: string; text: string }> = {
+    new:  { bg: "rgba(96,165,250,0.12)",  color: "#60A5FA", text: label },
+    live: { bg: "rgba(52,211,153,0.10)",  color: "#34D399", text: "●"   },
+    soon: { bg: "rgba(255,255,255,0.05)", color: "#475569", text: label },
   };
-  const s = styles[type] ?? styles.soon;
+  const s = map[type] ?? map.soon;
   return (
     <span style={{
       marginLeft: "auto", fontSize: "9px", padding: "2px 6px",
       borderRadius: "4px", fontWeight: 500,
-      background: s.background, color: s.color,
+      background: s.bg, color: s.color,
       fontFamily: "'DM Mono', monospace",
     }}>
-      {s.content ? s.content : label}
+      {s.text}
     </span>
   );
 }
 
-// ─── Single nav item ──────────────────────────────────────────────────────────
+// ─── Nav item ─────────────────────────────────────────────────────────────────
 function NavItem({
   href, label, icon, iconColor, badge, badgeType, active,
 }: {
@@ -54,24 +54,35 @@ function NavItem({
 }) {
   return (
     <Link href={href} style={{ textDecoration: "none" }}>
-      <div style={{
-        display: "flex", alignItems: "center", gap: "11px",
-        padding: "9px 12px", margin: "0 8px", borderRadius: "9px",
-        background: active ? "rgba(245,166,35,.10)" : "transparent",
-        border: `1px solid ${active ? "rgba(245,166,35,.22)" : "transparent"}`,
-        color: active ? "#F5A623" : "#6B7280",
-        fontSize: "12px", fontFamily: "'DM Mono', monospace",
-        cursor: "pointer",
-        transition: "background .15s, color .15s, border-color .15s",
-      }}
-        onMouseEnter={(e) => { if (!active) { (e.currentTarget as HTMLDivElement).style.background = "rgba(255,255,255,.04)"; (e.currentTarget as HTMLDivElement).style.color = "#9CA3AF"; } }}
-        onMouseLeave={(e) => { if (!active) { (e.currentTarget as HTMLDivElement).style.background = "transparent"; (e.currentTarget as HTMLDivElement).style.color = "#6B7280"; } }}
+      <div
+        style={{
+          display: "flex", alignItems: "center", gap: "11px",
+          padding: "9px 12px", margin: "0 8px", borderRadius: "9px",
+          background: active ? "rgba(96,165,250,0.10)" : "transparent",
+          border: `1px solid ${active ? "rgba(96,165,250,0.22)" : "transparent"}`,
+          color: active ? "#60A5FA" : "#64748B",
+          fontSize: "12px", fontFamily: "'DM Mono', monospace",
+          cursor: "pointer",
+          transition: "background .15s, color .15s",
+        }}
+        onMouseEnter={(e) => {
+          if (!active) {
+            (e.currentTarget as HTMLElement).style.background = "rgba(255,255,255,0.04)";
+            (e.currentTarget as HTMLElement).style.color = "#94A3B8";
+          }
+        }}
+        onMouseLeave={(e) => {
+          if (!active) {
+            (e.currentTarget as HTMLElement).style.background = "transparent";
+            (e.currentTarget as HTMLElement).style.color = "#64748B";
+          }
+        }}
       >
         <span style={{
-          width: "16px", height: "16px",
+          width: "16px", height: "16px", flexShrink: 0,
           display: "flex", alignItems: "center", justifyContent: "center",
-          fontSize: "11px", flexShrink: 0,
-          color: active ? "#F5A623" : (iconColor ?? "inherit"),
+          fontSize: "11px",
+          color: active ? "#60A5FA" : (iconColor ?? "inherit"),
         }}>
           {icon}
         </span>
@@ -86,7 +97,7 @@ function NavItem({
 function SectionLabel({ text }: { text: string }) {
   return (
     <div style={{
-      fontSize: "9px", color: "#374151",
+      fontSize: "9px", color: "#334155",
       letterSpacing: ".12em", textTransform: "uppercase",
       padding: "10px 20px 5px",
       fontFamily: "'DM Mono', monospace",
@@ -96,35 +107,30 @@ function SectionLabel({ text }: { text: string }) {
   );
 }
 
-// ─── Divider ──────────────────────────────────────────────────────────────────
 function Divider() {
-  return <div style={{ height: "1px", background: "rgba(255,255,255,.05)", margin: "8px 16px" }} />;
+  return <div style={{ height: "1px", background: "rgba(255,255,255,0.05)", margin: "8px 16px" }} />;
 }
 
-// ─── Main Sidebar ─────────────────────────────────────────────────────────────
+// ─── Sidebar ──────────────────────────────────────────────────────────────────
 export default function Sidebar() {
   const pathname = usePathname();
   const [user, setUser] = useState<User | null>(null);
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data }) => setUser(data.session?.user ?? null));
-    const { data: listener } = supabase.auth.onAuthStateChange((_e, session) => {
-      setUser(session?.user ?? null);
-    });
+    const { data: listener } = supabase.auth.onAuthStateChange((_e, s) => setUser(s?.user ?? null));
     return () => listener.subscription.unsubscribe();
   }, []);
 
-  // Derive initials + display name from user
   const displayName = user?.user_metadata?.full_name ?? user?.email?.split("@")[0] ?? "Creator";
-  const initials = displayName.slice(0, 2).toUpperCase();
-
-  const isActive = (href: string) =>
+  const initials    = displayName.slice(0, 2).toUpperCase();
+  const isActive    = (href: string) =>
     href === "/dashboard" ? pathname === "/dashboard" : pathname.startsWith(href);
 
   return (
     <aside style={{
       width: "220px", flexShrink: 0,
-      background: "#0C0C0F",
+      background: "#0A0B0F",
       borderRight: "1px solid rgba(255,255,255,0.055)",
       display: "flex", flexDirection: "column",
       padding: "20px 0",
@@ -132,80 +138,78 @@ export default function Sidebar() {
       overflowY: "auto",
     }}>
 
-      {/* ── Logo ─────────────────────────────────────────────────────── */}
-      <div style={{ padding: "0 18px 4px", display: "flex", alignItems: "center", gap: "9px" }}>
+      {/* Logo */}
+      <div style={{ padding: "0 18px 3px", display: "flex", alignItems: "center", gap: "9px" }}>
         <div style={{
           width: "30px", height: "30px", borderRadius: "9px", flexShrink: 0,
-          background: "linear-gradient(135deg, #F5A623, #C97B00)",
+          background: "linear-gradient(135deg, #60A5FA, #3B82F6)",
           display: "flex", alignItems: "center", justifyContent: "center",
           fontFamily: "'Syne', sans-serif", fontWeight: 800,
-          color: "#07070A", fontSize: "15px",
+          color: "#07080C", fontSize: "15px",
         }}>
           I
         </div>
-        <span style={{ fontFamily: "'Syne', sans-serif", fontWeight: 800, fontSize: "16px", color: "#F9FAFB" }}>
+        <span style={{ fontFamily: "'Syne', sans-serif", fontWeight: 800, fontSize: "16px", color: "#F1F5F9" }}>
           inflyio
         </span>
       </div>
-      <div style={{ fontSize: "9px", color: "#374151", letterSpacing: ".1em", textTransform: "uppercase", padding: "0 18px 22px", fontFamily: "'DM Mono', monospace" }}>
+      <div style={{
+        fontSize: "9px", color: "#334155",
+        letterSpacing: ".1em", textTransform: "uppercase",
+        padding: "0 18px 22px",
+        fontFamily: "'DM Mono', monospace",
+      }}>
         Creator Intelligence
       </div>
 
-      {/* ── Main nav ─────────────────────────────────────────────────── */}
+      {/* Main */}
       <SectionLabel text="Main" />
-      {MAIN_NAV.map((n) => (
-        <NavItem key={n.href} {...n} active={isActive(n.href)} />
-      ))}
+      {MAIN_NAV.map((n) => <NavItem key={n.href} {...n} active={isActive(n.href)} />)}
 
       <Divider />
 
-      {/* ── Platforms ────────────────────────────────────────────────── */}
+      {/* Platforms */}
       <SectionLabel text="Platforms" />
-      {PLATFORM_NAV.map((n) => (
-        <NavItem key={n.href} {...n} active={isActive(n.href)} />
-      ))}
+      {PLATFORM_NAV.map((n) => <NavItem key={n.href} {...n} active={isActive(n.href)} />)}
 
       <Divider />
 
-      {/* ── Other ────────────────────────────────────────────────────── */}
+      {/* Other */}
       <SectionLabel text="Other" />
-      {OTHER_NAV.map((n) => (
-        <NavItem key={n.href} {...n} active={isActive(n.href)} />
-      ))}
+      {OTHER_NAV.map((n) => <NavItem key={n.href} {...n} active={isActive(n.href)} />)}
 
-      {/* ── User card (bottom) ────────────────────────────────────────── */}
+      {/* User card */}
       <div style={{ marginTop: "auto", padding: "16px 10px 0" }}>
         <div style={{
           display: "flex", alignItems: "center", gap: "9px",
           padding: "10px 12px", borderRadius: "9px",
-          background: "rgba(255,255,255,.03)",
-          border: "1px solid rgba(255,255,255,.06)",
+          background: "rgba(255,255,255,0.03)",
+          border: "1px solid rgba(255,255,255,0.06)",
         }}>
           <div style={{
             width: "28px", height: "28px", borderRadius: "7px", flexShrink: 0,
-            background: "linear-gradient(135deg, rgba(245,166,35,.28), rgba(245,166,35,.08))",
-            border: "1px solid rgba(245,166,35,.25)",
+            background: "linear-gradient(135deg, rgba(96,165,250,0.25), rgba(96,165,250,0.07))",
+            border: "1px solid rgba(96,165,250,0.22)",
             display: "flex", alignItems: "center", justifyContent: "center",
-            fontSize: "11px", color: "#F5A623",
+            fontSize: "11px", color: "#60A5FA",
             fontFamily: "'Syne', sans-serif", fontWeight: 700,
           }}>
             {initials}
           </div>
           <div style={{ overflow: "hidden" }}>
             <div style={{
-              fontSize: "11px", color: "#F9FAFB",
+              fontSize: "11px", color: "#F1F5F9",
               fontFamily: "'Syne', sans-serif", fontWeight: 600,
               whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis",
             }}>
               {displayName}
             </div>
-            <div style={{ fontSize: "9px", color: "#4B5563", marginTop: "1px" }}>
+            <div style={{ fontSize: "9px", color: "#334155", marginTop: "1px" }}>
               {user ? "Free Plan" : "Not signed in"}
             </div>
           </div>
         </div>
 
-        {/* Sign out */}
         {user && (
           <button
             onClick={() => supabase.auth.signOut()}
@@ -213,14 +217,20 @@ export default function Sidebar() {
               width: "100%", marginTop: "6px",
               padding: "8px", borderRadius: "8px",
               background: "transparent",
-              border: "1px solid rgba(255,255,255,.06)",
-              color: "#374151", fontSize: "11px",
+              border: "1px solid rgba(255,255,255,0.06)",
+              color: "#334155", fontSize: "11px",
               fontFamily: "'DM Mono', monospace",
               cursor: "pointer",
               transition: "color .15s, border-color .15s",
             }}
-            onMouseEnter={(e) => { (e.currentTarget).style.color = "#F87171"; (e.currentTarget).style.borderColor = "rgba(248,113,113,.25)"; }}
-            onMouseLeave={(e) => { (e.currentTarget).style.color = "#374151"; (e.currentTarget).style.borderColor = "rgba(255,255,255,.06)"; }}
+            onMouseEnter={(e) => {
+              (e.currentTarget).style.color = "#F87171";
+              (e.currentTarget).style.borderColor = "rgba(248,113,113,0.25)";
+            }}
+            onMouseLeave={(e) => {
+              (e.currentTarget).style.color = "#334155";
+              (e.currentTarget).style.borderColor = "rgba(255,255,255,0.06)";
+            }}
           >
             Sign out
           </button>
