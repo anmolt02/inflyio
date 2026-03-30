@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import Link from "next/link";
 import { supabase } from "@/lib/supabase";
 import type { YoutubeScoreResponse } from "@/app/api/youtube-score/route";
 
@@ -583,7 +584,24 @@ export default function DashboardPage() {
                 </div>
               </div>
             )}
-
+            {/* Full Video Analytics CTA */}
+            <div style={{ marginBottom: "14px", display: "flex", justifyContent: "center" }}>
+              <Link
+                href={`/dashboard/video-analytics?channelId=${data.channelId}&name=${encodeURIComponent           (data.channelName)}`}
+                style={{
+                  display: "inline-flex", alignItems: "center", gap: "8px",
+                  padding: "12px 28px",
+                  background: C.blueDim, border: `1px solid ${C.blueBorder}`,
+                  borderRadius: "10px", color: C.blue,
+                  fontSize: "13px", fontFamily: "'DM Mono',monospace", fontWeight: 500,
+                  textDecoration: "none", transition: "background .15s",
+                }}
+                onMouseEnter={e => { (e.currentTarget as HTMLElement).style.background = "rgba(96,165,            250,0.16)"; }}
+                onMouseLeave={e => { (e.currentTarget as HTMLElement).style.background = C.blueDim; }}
+              >
+                View Full Video Analytics →
+              </Link>
+            </div>
             {/* Platform bar */}
             <div className="platform-bar" style={{ background: "rgba(255,255,255,.018)", border: `1px solid ${C.border}`, borderRadius: "12px", padding: "14px 20px" }}>
               <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>

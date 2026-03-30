@@ -8,7 +8,7 @@ import type { User } from "@supabase/supabase-js";
 
 const MAIN_NAV = [
   { label: "Dashboard", href: "/dashboard",           icon: "◼" },
-  { label: "Analytics",  href: "/dashboard/analytics", icon: "▲" },
+  { label: "Analytics", href: "/dashboard/video-analytics", icon: "▲" },
   { label: "Content",    href: "/dashboard/content",   icon: "▶", badge: "New", badgeType: "new" },
   { label: "Audience",   href: "/dashboard/audience",  icon: "◉" },
 ];
