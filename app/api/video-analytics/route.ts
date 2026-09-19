@@ -1,4 +1,16 @@
 import { NextRequest, NextResponse } from "next/server";
+import { getCached, setCached, getStale } from "@/lib/cache";
+import {
+  getUserId,
+  getClientIp,
+  hashIp,
+  checkQuota,
+  quotaResponse,
+  logUsage,
+} from "@/lib/usage";
+
+export const runtime = "nodejs";        // required: lib/usage.ts uses node:crypto
+export const dynamic = "force-dynamic";
 
 const DAYS = ["Sunday","Monday","Tuesday","Wednesday","Thursday","Friday","Saturday"];
 
@@ -59,6 +71,10 @@ export interface VideoAnalyticsResponse {
     average: number;
     underperforming: number;
   };
+  /** true when served from api_cache — no YouTube units were spent */
+  cached?: boolean;
+  /** true when the daily unit breaker tripped and this payload may be old */
+  stale?: boolean;
 }
 
 export async function GET(req: NextRequest) {
@@ -73,6 +89,31 @@ export async function GET(req: NextRequest) {
   const YT_KEY = process.env.YOUTUBE_API_KEY;
   if (!YT_KEY)
     return NextResponse.json({ error: "YouTube API key not configured." }, { status: 500 });
+
+  // ── A. Identify the caller ──────────────────────────────────────────────────
+  const userId = await getUserId(req);
+  const ipHash = hashIp(getClientIp(req));
+
+  // ── B. Gate ─────────────────────────────────────────────────────────────────
+  // This route costs only ~3 units vs 103 for a score, so the burst guard
+  // matters more here than the unit breaker. Both still apply.
+  const quota = await checkQuota(userId, ipHash, "free");
+  if (!quota.allowed) {
+    if (quota.staleOnly) {
+      const stale = await getStale<VideoAnalyticsResponse>("video-analytics", channelId);
+      if (stale) return NextResponse.json({ ...stale, cached: true, stale: true });
+    }
+    return quotaResponse(quota);
+  }
+
+  // ── C. Cache lookup ─────────────────────────────────────────────────────────
+  const hit = await getCached<VideoAnalyticsResponse>("video-analytics", channelId);
+  if (hit) {
+    await logUsage({
+      userId, ipHash, action: "video-analytics", target: channelId, cached: true, units: 0,
+    });
+    return NextResponse.json({ ...hit, cached: true });
+  }
 
   try {
     // ── 1. Channel details + uploadsPlaylistId ────────────────────────────────
@@ -237,6 +278,12 @@ export async function GET(req: NextRequest) {
       },
       distribution,
     };
+
+    // ── Cache + meter ─────────────────────────────────────────────────────────
+    await setCached("video-analytics", channelId, payload);
+    await logUsage({
+      userId, ipHash, action: "video-analytics", target: channelId, cached: false, units: 3,
+    });
 
     return NextResponse.json(payload);
 

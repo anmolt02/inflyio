@@ -5,6 +5,7 @@ import { useSearchParams }                            from "next/navigation";
 import Link                                           from "next/link";
 import type { VideoAnalyticsResponse, VideoAnalyticsVideo } from "@/app/api/video-analytics/route";
 import type { VideoDeepDiveResponse }                       from "@/app/api/video-deep-dive/route";
+import { supabase } from "@/lib/supabase";
 
 // ─── Design tokens ────────────────────────────────────────────────────────────
 const C = {
@@ -444,30 +445,76 @@ function VideoAnalyticsContent() {
 
   const fetchAnalytics = useCallback(async () => {
     if (!channelId) return;
-    setALoading(true); setAError(null);
+    setALoading(true);
+    setAError(null);
     try {
-      const res  = await fetch(`/api/video-analytics?channelId=${encodeURIComponent(channelId)}`);
+      // Auth header so signed-in users are metered by account, not IP.
+      const { data: sessionData } = await supabase.auth.getSession();
+      const token = sessionData.session?.access_token;
+
+      const res = await fetch(
+        `/api/video-analytics?channelId=${encodeURIComponent(channelId)}`,
+        {
+          headers: token ? { Authorization: `Bearer ${token}` } : {},
+        }
+      );
+
+      if (res.status === 429) {
+        const body = await res.json();
+        setAError(body.error ?? "Rate limit exceeded.");
+        return;
+      }
+
       const json = await res.json();
-      if (!res.ok || json.error) { setAError(json.error ?? "Something went wrong."); return; }
+      if (!res.ok || json.error) {
+        setAError(json.error ?? "Something went wrong.");
+        return;
+      }
       setAnalytics(json as VideoAnalyticsResponse);
     } catch {
       setAError("Failed to load analytics. Check your connection.");
-    } finally { setALoading(false); }
+    } finally {
+      setALoading(false);
+    }
   }, [channelId]);
 
   useEffect(() => { fetchAnalytics(); }, [fetchAnalytics]);
 
   const fetchDeepDive = async () => {
-    if (!videoInput.trim()) return;
-    setDLoading(true); setDError(null); setDeepDive(null);
+    const trimmed = videoInput.trim();
+    if (!trimmed) return;
+
+    setDLoading(true);
+    setDError(null);
+    setDeepDive(null);
     try {
-      const res  = await fetch(`/api/video-deep-dive?videoId=${encodeURIComponent(videoInput.trim())}`);
+      const { data: sessionData } = await supabase.auth.getSession();
+      const token = sessionData.session?.access_token;
+
+      const res = await fetch(
+        `/api/video-deep-dive?videoId=${encodeURIComponent(trimmed)}`,
+        {
+          headers: token ? { Authorization: `Bearer ${token}` } : {},
+        }
+      );
+
+      if (res.status === 429) {
+        const body = await res.json();
+        setDError(body.error ?? "Rate limit exceeded.");
+        return;
+      }
+
       const json = await res.json();
-      if (!res.ok || json.error) { setDError(json.error ?? "Something went wrong."); return; }
+      if (!res.ok || json.error) {
+        setDError(json.error ?? "Something went wrong.");
+        return;
+      }
       setDeepDive(json as VideoDeepDiveResponse);
     } catch {
       setDError("Failed to analyse video. Check your connection.");
-    } finally { setDLoading(false); }
+    } finally {
+      setDLoading(false);
+    }
   };
 
   if (!channelId) return <EmptyState />;

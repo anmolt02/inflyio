@@ -283,20 +283,44 @@ export default function DashboardPage() {
   const [error, setError]     = useState<string | null>(null);
 
   const analyze = async () => {
-    if (!input.trim()) return;
+    const trimmed = input.trim();
+    if (!trimmed) return;
+
     try {
-      setLoading(true); setError(null); setData(null);
-      const { data: session } = await supabase.auth.getSession();
-      const userId = session.session?.user?.id ?? null;
-      const url = `/api/youtube-score?name=${encodeURIComponent(input.trim())}` +
-        (userId ? `&userId=${userId}` : "");
-      const res  = await fetch(url);
+      setLoading(true);
+      setError(null);
+      setData(null);
+
+      // Get the current session token so signed-in users are metered
+      // against their account (5/month), not the anonymous IP limit (3/day).
+      const { data: sessionData } = await supabase.auth.getSession();
+      const token = sessionData.session?.access_token;
+
+      const res = await fetch(
+        `/api/youtube-score?name=${encodeURIComponent(trimmed)}`,
+        {
+          headers: token ? { Authorization: `Bearer ${token}` } : {},
+        }
+      );
+
+      if (res.status === 429) {
+        const body = await res.json();
+        setError(body.error ?? "Rate limit exceeded.");
+        return;
+      }
+
       const json = await res.json();
-      if (!res.ok || json.error) { setError(json.error ?? "Something went wrong"); return; }
+      if (!res.ok || json.error) {
+        setError(json.error ?? "Something went wrong");
+        return;
+      }
+
       setData(json as YoutubeScoreResponse);
     } catch {
       setError("Failed to analyse channel. Check your connection.");
-    } finally { setLoading(false); }
+    } finally {
+      setLoading(false);
+    }
   };
 
   const ts      = data ? getTierStyle(data.tier) : null;
@@ -587,7 +611,7 @@ export default function DashboardPage() {
             {/* Full Video Analytics CTA */}
             <div style={{ marginBottom: "14px", display: "flex", justifyContent: "center" }}>
               <Link
-                href={`/dashboard/video-analytics?channelId=${data.channelId}&name=${encodeURIComponent           (data.channelName)}`}
+                href={`/dashboard/video-analytics?channelId=${data.channelId}&name=${encodeURIComponent(data.channelName)}`}
                 style={{
                   display: "inline-flex", alignItems: "center", gap: "8px",
                   padding: "12px 28px",
@@ -596,7 +620,7 @@ export default function DashboardPage() {
                   fontSize: "13px", fontFamily: "'DM Mono',monospace", fontWeight: 500,
                   textDecoration: "none", transition: "background .15s",
                 }}
-                onMouseEnter={e => { (e.currentTarget as HTMLElement).style.background = "rgba(96,165,            250,0.16)"; }}
+                onMouseEnter={e => { (e.currentTarget as HTMLElement).style.background = "rgba(96,165,250,0.16)"; }}
                 onMouseLeave={e => { (e.currentTarget as HTMLElement).style.background = C.blueDim; }}
               >
                 View Full Video Analytics →
