@@ -1,5 +1,23 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
+import {
+  getCached,
+  setCached,
+  getStale,
+  lookupChannelId,
+  saveChannelId,
+} from "@/lib/cache";
+import {
+  getUserId,
+  getClientIp,
+  hashIp,
+  checkQuota,
+  quotaResponse,
+  logUsage,
+} from "@/lib/usage";
+
+export const runtime = "nodejs";        // required: lib/usage.ts uses node:crypto
+export const dynamic = "force-dynamic"; // never statically cache this route
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -43,6 +61,10 @@ export interface YoutubeScoreResponse {
   contentConsistency: number;
   videoSampleSize: number;
   topVideos: TopVideo[];
+  /** true when served from api_cache — no YouTube units were spent */
+  cached?: boolean;
+  /** true when the daily unit breaker tripped and this payload may be old */
+  stale?: boolean;
 }
 
 // ─── Tier table ───────────────────────────────────────────────────────────────
@@ -153,12 +175,44 @@ function calcContentConsistency(vids: VideoData[]): number {
   return Math.round(clamp(100 - cv * 50));
 }
 
+// ─── creators insert ──────────────────────────────────────────────────────────
+
+/**
+ * Writes the analysis into `creators`. This runs on BOTH the live path and the
+ * cache-hit path — the Content page reads the user's most recent row, so
+ * skipping it on cache hits would silently freeze that page.
+ * Everything needed is derivable from the payload, so cached results work too.
+ */
+async function insertCreatorRow(
+  payload: YoutubeScoreResponse,
+  userId: string | null
+): Promise<void> {
+  try {
+    const supabase = createClient(
+      process.env.NEXT_PUBLIC_SUPABASE_URL!,
+      process.env.SUPABASE_SERVICE_ROLE_KEY!
+    );
+    await supabase.from("creators").insert({
+      user_id:         userId,
+      name:            payload.channelName,
+      platform:        "youtube",
+      followers:       payload.subscribers,
+      posts:           payload.videos,
+      avg_views:       payload.avgViews,
+      engagement_rate: payload.subscribers > 0 ? payload.avgViews / payload.subscribers : 0,
+      influence_score: parseFloat(payload.influenceScore),
+      tier:            payload.tier,
+    });
+  } catch (err) {
+    console.error("[youtube-score] creators insert failed:", err);
+  }
+}
+
 // ─── Route handler ────────────────────────────────────────────────────────────
 
 export async function GET(req: NextRequest) {
   const { searchParams } = new URL(req.url);
-  const name   = searchParams.get("name")?.trim();
-  const userId = searchParams.get("userId") ?? null;
+  const name = searchParams.get("name")?.trim();
 
   if (!name) {
     return NextResponse.json({ error: "Channel name is required." }, { status: 400 });
@@ -169,22 +223,78 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ error: "YouTube API key not configured." }, { status: 500 });
   }
 
-  try {
-    // ── 1. Find channel ───────────────────────────────────────────────────────
-    const searchRes = await fetch(
-      `https://www.googleapis.com/youtube/v3/search?part=snippet&type=channel&q=${encodeURIComponent(name)}&maxResults=1&key=${YT_KEY}`
-    );
-    const searchData = await searchRes.json();
-    if (!searchData.items?.length) {
-      return NextResponse.json({ error: `Channel "${name}" not found.` }, { status: 404 });
+  // ── A. Identify the caller ──────────────────────────────────────────────────
+  // The old `?userId=` param was trusted blindly, which let anyone write rows
+  // into another user's history and (now) burn their quota. We verify the JWT
+  // instead. Clients MUST send: Authorization: Bearer <supabase access_token>
+  const userId = await getUserId(req);
+  const ipHash = hashIp(getClientIp(req));
+
+  // ── B. Gate ─────────────────────────────────────────────────────────────────
+  const quota = await checkQuota(userId, ipHash, "free");
+  if (!quota.allowed) {
+    // Daily unit breaker tripped: stale data beats an error page.
+    if (quota.staleOnly) {
+      const known = await lookupChannelId(name);
+      if (known) {
+        const stale = await getStale<YoutubeScoreResponse>("score", known);
+        if (stale) {
+          await insertCreatorRow(stale, userId);
+          return NextResponse.json({ ...stale, cached: true, stale: true });
+        }
+      }
     }
-    const channelId: string = searchData.items[0].snippet.channelId;
+    return quotaResponse(quota);
+  }
+
+  try {
+    // ── C. Cache lookup before spending anything ──────────────────────────────
+    let channelId = await lookupChannelId(name);
+    let unitsSpent = 0;
+
+    if (channelId) {
+      const hit = await getCached<YoutubeScoreResponse>("score", channelId);
+      if (hit) {
+        await insertCreatorRow(hit, userId);
+        await logUsage({
+          userId, ipHash, action: "score", target: channelId, cached: true, units: 0,
+        });
+        return NextResponse.json({ ...hit, cached: true });
+      }
+    }
+
+    // ── 1. Find channel (100 units — only when the name is new to us) ─────────
+    if (!channelId) {
+      const searchRes = await fetch(
+        `https://www.googleapis.com/youtube/v3/search?part=snippet&type=channel&q=${encodeURIComponent(name)}&maxResults=1&key=${YT_KEY}`
+      );
+      const searchData = await searchRes.json();
+      if (!searchData.items?.length) {
+        return NextResponse.json({ error: `Channel "${name}" not found.` }, { status: 404 });
+      }
+      channelId = searchData.items[0].snippet.channelId as string;
+      unitsSpent += 100;
+
+      await saveChannelId(name, channelId, searchData.items[0].snippet.title);
+
+      // Two different search terms can resolve to the same channel
+      // ("mrbeast" / "mr beast"), so re-check the cache now that we have the ID.
+      const hit = await getCached<YoutubeScoreResponse>("score", channelId);
+      if (hit) {
+        await insertCreatorRow(hit, userId);
+        await logUsage({
+          userId, ipHash, action: "score", target: channelId, cached: true, units: unitsSpent,
+        });
+        return NextResponse.json({ ...hit, cached: true });
+      }
+    }
 
     // ── 2. Channel details + thumbnail + contentDetails ───────────────────────
     const channelRes = await fetch(
       `https://www.googleapis.com/youtube/v3/channels?part=snippet,statistics,contentDetails&id=${channelId}&key=${YT_KEY}`
     );
     const channelData = await channelRes.json();
+    unitsSpent += 1;
     if (!channelData.items?.length) {
       return NextResponse.json({ error: "Could not fetch channel details." }, { status: 404 });
     }
@@ -210,6 +320,7 @@ export async function GET(req: NextRequest) {
         `https://www.googleapis.com/youtube/v3/playlistItems?part=contentDetails&playlistId=${uploadsId}&maxResults=30&key=${YT_KEY}`
       );
       const plData = await plRes.json();
+      unitsSpent += 1;
 
       if (plData.items?.length) {
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -220,6 +331,7 @@ export async function GET(req: NextRequest) {
           `https://www.googleapis.com/youtube/v3/videos?part=statistics,snippet&id=${ids}&key=${YT_KEY}`
         );
         const vData = await vRes.json();
+        unitsSpent += 1;
 
         if (vData.items?.length) {
           // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -277,24 +389,7 @@ export async function GET(req: NextRequest) {
         publishedAt:  v.publishedAt,
       }));
 
-    // ── 8. Supabase insert ────────────────────────────────────────────────────
-    const supabase = createClient(
-      process.env.NEXT_PUBLIC_SUPABASE_URL!,
-      process.env.SUPABASE_SERVICE_ROLE_KEY!
-    );
-    await supabase.from("creators").insert({
-      user_id:         userId,
-      name:            ch.snippet.title,
-      platform:        "youtube",
-      followers:       subscribers,
-      posts:           videoCount,
-      avg_views:       avgViews,
-      engagement_rate: engRatio,
-      influence_score: finalScore,
-      tier:            tier.name,
-    });
-
-    // ── 9. Response ───────────────────────────────────────────────────────────
+    // ── 8. Response payload ───────────────────────────────────────────────────
     const payload: YoutubeScoreResponse = {
       channelId,
       channelName:         ch.snippet.title,
@@ -319,10 +414,19 @@ export async function GET(req: NextRequest) {
       topVideos,
     };
 
+    // ── 9. Cache, record history, meter ───────────────────────────────────────
+    await setCached("score", channelId, payload);
+    await insertCreatorRow(payload, userId);
+    await logUsage({
+      userId, ipHash, action: "score", target: channelId, cached: false, units: unitsSpent,
+    });
+
     return NextResponse.json(payload);
 
   } catch (err) {
     console.error("[youtube-score] Error:", err);
+    // Deliberately not logging usage here — a failed analysis shouldn't
+    // consume the caller's monthly quota.
     return NextResponse.json({ error: "Failed to analyse channel." }, { status: 500 });
   }
 }
