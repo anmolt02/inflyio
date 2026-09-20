@@ -2,6 +2,11 @@ import { createHash } from "crypto";
 import { supabaseAdmin } from "./supabase-admin";
 import type { CacheKind } from "./cache";
 
+/* Unlimited quota ID's for testing. These are not real users, just a way to bypass the quota checks. */
+const OWNER_USER_IDS = new Set([
+  "92898d0e-211b-4d2d-93ae-b2e9853a38c0",
+]);
+
 /**
  * Usage metering + rate limiting, backed by Postgres.
  *
@@ -128,6 +133,10 @@ export async function checkQuota(
   ipHash: string,
   plan: "free" | "pro" = "free"
 ): Promise<QuotaResult> {
+    // Owner override — unlimited while there's no real billing yet.
+  if (userId && OWNER_USER_IDS.has(userId)) {
+    return { allowed: true, used: 0, limit: Infinity };
+  }
   try {
     // 1. Burst guard — applies to everyone, including signed-in users.
     const burst = await countSince("ip_hash", ipHash, isoAgo(MINUTE));
